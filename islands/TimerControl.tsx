@@ -10,6 +10,12 @@ export default function TimerControl({ reps }: { reps: number }) {
   const isPaused = useSignal(false); // Tracks if the timer is paused
   const isStarted = useSignal(false); // Tracks if the timer is started
   const increments = 100;
+  const audioRef = useSignal<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Create audio instance when component mounts
+    audioRef.value = new Audio("/chime.mp3");
+  }, []);
 
   useEffect(() => {
     if (!isStarted.value) return;
@@ -21,6 +27,7 @@ export default function TimerControl({ reps }: { reps: number }) {
         return;
       } else{
         if (timeRemaining.value <= 0) {
+          audioRef.value?.play();
           currentRep.value += 1;
           timeRemaining.value = repLen;
         } else if (!isPaused.value && isStarted.value) {
