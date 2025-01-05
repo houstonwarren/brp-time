@@ -52,6 +52,7 @@ export default function TimerControl({ reps }: { reps: number }) {
       } else{
         if (timeRemaining.value <= 0) {
           audioRef.value?.play();
+          timeRemaining.value = repLen;
           currentRep.value += 1;
           timeRemaining.value = repLen;
         } else if (!isPaused.value && isStarted.value) {

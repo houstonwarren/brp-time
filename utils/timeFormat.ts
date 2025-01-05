@@ -7,5 +7,5 @@ export function parseSeconds(milliseconds: number): number[] {
 
 export function formatTime(milliseconds: number): string {
     const [totalSeconds, tenths] = parseSeconds(milliseconds);
-    return `${totalSeconds}.${tenths}`;
+    return `${Math.max(totalSeconds, 0)}.${Math.max(tenths, 0)}`;
 }
