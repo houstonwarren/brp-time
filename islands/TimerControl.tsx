@@ -14,7 +14,31 @@ export default function TimerControl({ reps }: { reps: number }) {
 
   useEffect(() => {
     // Create audio instance when component mounts
-    audioRef.value = new Audio("/chime.mp3");
+    const audio = new Audio("/chime.mp3");
+    // Enable playing on iOS
+    audio.setAttribute('playsinline', '');
+    audio.setAttribute('preload', 'auto');
+    audioRef.value = audio;
+  
+    // Initialize audio on first user interaction
+    const initAudio = () => {
+      audio.load();
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      }).catch(console.error);
+      // Remove the event listeners after initialization
+      document.removeEventListener('touchstart', initAudio);
+      document.removeEventListener('click', initAudio);
+    };
+  
+    document.addEventListener('touchstart', initAudio);
+    document.addEventListener('click', initAudio);
+  
+    return () => {
+      document.removeEventListener('touchstart', initAudio);
+      document.removeEventListener('click', initAudio);
+    };
   }, []);
 
   useEffect(() => {
