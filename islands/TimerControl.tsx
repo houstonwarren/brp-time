@@ -1,7 +1,7 @@
 import { useEffect } from "preact/hooks";
 import { useSignal } from "@preact/signals";
 import { formatTime } from "../utils/timeFormat.ts";
-
+import BackButton from "./BackButton.tsx";
 export default function TimerControl({ reps }: { reps: number }) {
   // Signals for reactive state management
   const currentRep = useSignal(0); // Tracks the current rep number
@@ -11,23 +11,36 @@ export default function TimerControl({ reps }: { reps: number }) {
   const isStarted = useSignal(false); // Tracks if the timer is started
   const increments = 100;
   const audioRef = useSignal<HTMLAudioElement | null>(null);
+  const wakeLock = useSignal<WakeLockSentinel | null>(null);
 
+  // Audio
   useEffect(() => {
     // Create audio instance when component mounts
     const audio = new Audio("/chime.mp3");
-    // Enable playing on iOS
+    // Enable playing on iOS without interrupting background audio
     audio.setAttribute('playsinline', '');
     audio.setAttribute('preload', 'auto');
+    // Set to not interfere with background audio
+    audio.volume = 1.0;
     audioRef.value = audio;
   
     // Initialize audio on first user interaction
     const initAudio = () => {
+      // Set audio context options for iOS
+      if (typeof globalThis.AudioContext !== 'undefined') {
+        const audioContext = new AudioContext();
+        audioContext.resume().catch(console.error);
+      }
+      
       audio.load();
-      audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      }).catch(console.error);
-      // Remove the event listeners after initialization
+      // Play and immediately pause to initialize, handle asynchronously
+      audio.play()
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        })
+        .catch(err => console.warn('Audio init error:', err));
+      
       document.removeEventListener('touchstart', initAudio);
       document.removeEventListener('click', initAudio);
     };
@@ -40,6 +53,29 @@ export default function TimerControl({ reps }: { reps: number }) {
       document.removeEventListener('click', initAudio);
     };
   }, []);
+
+  // Add wake lock request function
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock.value = await navigator.wakeLock.request('screen');
+      }
+    } catch (err) {
+      console.warn('Wake Lock error:', err);
+    }
+  };
+
+  // Add wake lock release function
+  const releaseWakeLock = async () => {
+    if (wakeLock.value) {
+      try {
+        await wakeLock.value.release();
+        wakeLock.value = null;
+      } catch (err) {
+        console.warn('Wake Lock release error:', err);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!isStarted.value) return;
@@ -63,14 +99,18 @@ export default function TimerControl({ reps }: { reps: number }) {
     return () => clearInterval(timer);
   }, [isStarted.value]);
 
-  const handleStart = () => {isStarted.value = true;};
+  const handleStart = async () => {
+    isStarted.value = true;
+    await requestWakeLock();
+  };
   const handlePause = () => {isPaused.value = true;};
   const handleResume = () => {isPaused.value = false;};
-  const handleStop = () => {
+  const handleStop = async () => {
     isStarted.value = false;
     isPaused.value = false;
     currentRep.value = 0; // Reset to the first rep
     timeRemaining.value = repLen; // Reset time for the first rep
+    await releaseWakeLock();
   };
 
   return (
@@ -82,7 +122,7 @@ export default function TimerControl({ reps }: { reps: number }) {
         </p>
 
         {/* Display the formatted time remaining */}
-        <p className="text-8xl font-bold text-gray-800">
+        <p className="text-9xl font-bold text-gray-800">
           {formatTime(timeRemaining.value)}
         </p>
 
@@ -117,6 +157,9 @@ export default function TimerControl({ reps }: { reps: number }) {
             Stop
           </button>
         </div>
+      </div>
+      <div class="flex justify-center fixed bottom-8 w-full">
+        <BackButton />
       </div>
     </div>
   );
