@@ -13,7 +13,9 @@ export default function SetReps() {
             Number of Reps:
           </label>
           <input 
-            type="number" 
+            type="number"
+            inputmode="numeric"
+            pattern="[0-9]*"
             id="reps" 
             name="reps" 
             required 
